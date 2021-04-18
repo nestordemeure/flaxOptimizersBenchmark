@@ -10,7 +10,7 @@ setup(
     url = 'https://github.com/nestordemeure/flaxOptimizersBenchmark',
     # download_url = 'https://github.com/nestordemeure/flaxOptimizersBenchmark/archive/v?.?.tar.gz',
     keywords = ['deep-learning', 'optimizer', 'benchmark', 'flax'],
-    install_requires=['jax', 'flax'],
+    install_requires=['jax', 'flax', 'batchup'],
     classifiers=[ # https://pypi.org/classifiers/
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',

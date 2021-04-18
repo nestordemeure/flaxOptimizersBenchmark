@@ -6,6 +6,7 @@ import json
 # TODO:
 # - function to get best training and testing loss
 # - function to get the mean and sd of several Experiments
+# - pass dictionnary rather than particular loss/parameter so that we can instrument many things (?)
 
 class Experiment():
     "Used to store training data on an experiment."
