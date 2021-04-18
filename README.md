@@ -24,6 +24,21 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
 
 **TODO**
 
+## TODO
+
+- struct to store hyperparameters or just one file per dataset (simpler at first)
+- code to download datasets
+- main training loop
+- architectures
+- way to repeat experiments
+
+- plot
+  the plotting function take experiments as inputs or (dataset,architecture) to compare optimizers
+  - bar plot or jit/run time
+  - bar plot of final train/test loss
+  - plot of loss accross time (train and/or test) (one or all optimizers)
+  - final loss as a function of starting lr
+
 ## Flax optimizers
 
 - [flaxOptimizers](https://github.com/nestordemeure/flaxOptimizers) contains implementations of a large number of optimizers in Flax.

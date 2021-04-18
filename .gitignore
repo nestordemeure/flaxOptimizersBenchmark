@@ -1,5 +1,6 @@
 # local developement install
 flaxOptimizersBenchmark.egg-info/
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
