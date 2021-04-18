@@ -1,3 +1,6 @@
+# local developement install
+flaxOptimizersBenchmark.egg-info/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
