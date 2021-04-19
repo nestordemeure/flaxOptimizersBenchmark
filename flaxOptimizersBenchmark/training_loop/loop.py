@@ -1,5 +1,7 @@
+from functools import partial
 import jax
 import numpy as np
+import jax.numpy as jnp
 from flax.optim import OptimizerDef
 
 def initialize_parameters(model, input_example, random_seed=42):
@@ -8,7 +10,7 @@ def initialize_parameters(model, input_example, random_seed=42):
     produces initial parameters for the model
     """
     rng = jax.random.PRNGKey(random_seed)
-    parameters = model.init(rng, *input_example)
+    parameters = model.init(rng, input_example, train=False)
     return parameters
 
 def training_loop(experiment,
@@ -33,11 +35,11 @@ def training_loop(experiment,
     # jitted loss function
     @jax.jit
     def train_step(optimizer, batch):
-        def loss_fn(parameters): return loss_function(parameters, batch)
-        loss_value, loss_grad = jax.value_and_grad(loss_fn)(optimizer.target)
+        def loss_fn(parameters): return loss_function(parameters, batch, train=True)
+        (loss_value, updated_state), loss_grad = jax.value_and_grad(loss_fn, has_aux=True)(optimizer.target)
         optimizer = optimizer.apply_gradient(loss_grad)
-        return optimizer, loss_value
-    loss_jitted = jax.jit(loss_function)
+        return optimizer, loss_value, updated_state
+    loss_jitted = jax.jit(partial(loss_function, train=False))
 
     # training loop
     if display: print("Starting training...")
@@ -46,10 +48,13 @@ def training_loop(experiment,
         # iterates on all batches
         batch_iterator = train_dataset_source.batch_iterator(batch_size=batch_size, shuffle=True)
         for batch in batch_iterator:
-            optimizer, loss_value = train_step(optimizer, batch)
-            experiment.end_iteration(train_loss=loss_value, learning_rate=optimizer.learning_rate)
+            optimizer, loss_value, updated_state = train_step(optimizer, batch)
+            loss_value = np.asscalar(np.array(loss_value)) # while jnp.asscalar does not exist
+            optimizer.replace(target={'params': optimizer.target['params'], 'batch_stats': updated_state})
+            experiment.end_iteration(train_loss=loss_value, learning_rate=optimizer.optimizer_def.hyper_params.learning_rate)
         # measure validation error
-        test_loss = loss_jitted(optimizer.target, test_dataset)
+        test_loss, _ = loss_jitted(optimizer.target, test_dataset)
+        test_loss = np.asscalar(np.array(test_loss)) # while jnp.asscalar does not exist
         experiment.end_epoch(test_loss, display=display)
 
     if display: print(f"Training done (final test accuracy: {experiment.best_test_loss:e}).")

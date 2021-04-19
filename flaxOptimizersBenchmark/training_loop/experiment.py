@@ -4,7 +4,8 @@ import time
 import json
 
 # TODO:
-# - function to get best training and testing loss
+# - stores optimizer parameters in a dict
+# - stores train parameters in a dict
 # - function to get the mean and sd of several Experiments
 # - pass dictionnary rather than particular loss/parameter so that we can instrument many things (?)
 
@@ -45,6 +46,16 @@ class Experiment():
         "average run time, not counting the first epoch as it is impacted by the jit"
         if len(self.epoch_runtimes) < 2: return math.nan
         return statistics.mean(self.epoch_runtimes[1:])
+
+    @property
+    def best_train_loss(self):
+        "returns the best training loss that was observed so far"
+        return min(self.train_losses)
+
+    @property
+    def best_test_loss(self):
+        "returns the best testing loss that was observed so far"
+        return min(self.test_losses)
 
     @property
     def jit_time(self):
