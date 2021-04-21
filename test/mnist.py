@@ -3,7 +3,7 @@ from flaxOptimizersBenchmark import run_MNIST
 
 # optimizer
 learning_rate = 1e-3
-weight_decay = 0.0
+weight_decay = 0.1
 beta1 = 0.9
 beta2 = 0.99
 eps = 1e-8
@@ -14,3 +14,7 @@ run_MNIST(optimizer, 'Adam')
 
 # TODO very slow (more than 10s per epoch)
 # normal ?
+# overfits masively
+
+# reproduce this
+# https://www.tensorflow.org/tutorials/quickstart/advanced?hl=en

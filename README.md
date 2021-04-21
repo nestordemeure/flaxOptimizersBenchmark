@@ -32,6 +32,8 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
 - architectures
 - way to repeat experiments
 
+- add accuracy when it is meaningful
+
 - plot
   the plotting function take experiments as inputs or (dataset,architecture) to compare optimizers
   - bar plot or jit/run time
