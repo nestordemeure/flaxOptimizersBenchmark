@@ -1,11 +1,12 @@
 # Flax Optimizers Benchmark
 
 The goal of this repository is to provide users with a collection of benchmark to evaluate Flax optimizers.
-To do so, we buil an infrastructure to run optimizers on a panel of datasets (adapted from [TensorFlow Datasets](https://www.tensorflow.org/datasets/overview)), save all meaningful training metrics to disk and plot their results later.
+We aim to both give fast benchmarks, to quickly evaluate new optimizers, and slow classic benchmarks to help authors of deep-learning papers that want to publish work on an optimizer.
 
-We aim to:
-- give some fast benchmarks to quickly evaluate new optimizers
-- give classic benchmarks, plotting functions and functionalities to help authors of deep-learning papers that want to publish a new optimizer
+To do so, we built an infrastructure to:
+- run optimizers on a panel of datasets (adapted from [TensorFlow Datasets](https://www.tensorflow.org/datasets/overview)), 
+- save all meaningful training metrics and parameters to disk (as human-readable json files),
+- plot the results later.
 
 **This is a work in progress, you should expect the elements in the TODO list to be done within a few weeks.**
 
@@ -47,7 +48,7 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
 
 ## Functionalities we *do not* have
 
-- data augmentation (as it is very problem specific and we are focussing on the optimizer rather than the individual problems)
+- data augmentation (as it is very problem specific and we are focussing on the optimizers rather than the individual problems)
 - learning rate and weight decay scheduler (might be added later)
 
 ## Flax optimizers
