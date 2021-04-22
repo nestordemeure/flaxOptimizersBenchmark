@@ -7,6 +7,8 @@ We aim to:
 - give some fast benchmarks to quickly evaluate new optimizers
 - give classic benchmarks, plotting functions and functionalities to help authors of deep-learning papers that want to publish a new optimizer
 
+**This is a work in progress, you should expect the elements in the TODO list to be done within a few weeks.**
+
 ## Installation
 
 You can install this librarie with:
