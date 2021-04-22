@@ -41,6 +41,8 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
   - plot of loss accross time (train and/or test) (one or all optimizers)
   - final loss as a function of starting lr
 
+https://www.tensorflow.org/datasets/overview
+
 ## Functionalities we *do not* have
 
 - data augmentation (as it is very problem specific and we are focussing on the optimizer rather than the individual problems)

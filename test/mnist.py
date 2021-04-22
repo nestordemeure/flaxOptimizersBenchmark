@@ -18,3 +18,7 @@ run_MNIST(optimizer, 'Adam')
 
 # reproduce this
 # https://www.tensorflow.org/tutorials/quickstart/advanced?hl=en
+
+# use tensorflow datasets to get them readymade!
+# https://www.tensorflow.org/datasets
+# https://jax.readthedocs.io/en/latest/notebooks/neural_network_with_tfds_data.html

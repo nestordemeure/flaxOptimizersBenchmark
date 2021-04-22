@@ -4,18 +4,19 @@ import numpy as np
 import jax.numpy as jnp
 from flax.optim import OptimizerDef
 
-def initialize_parameters(model, input_example, random_seed=42):
+def initialize_parameters(model, batched_dataset, random_seed=42):
     """
     takes a FLAX model, an example input tensor and a random seed (to insure reproducibility)
     produces initial parameters for the model
     """
     rng = jax.random.PRNGKey(random_seed)
+    input_example, label_example = next(batched_dataset.as_numpy_iterator())
     parameters = model.init(rng, input_example, train=False)
     return parameters
 
 def training_loop(experiment,
-                  parameters, loss_function, optimizer,
-                  train_dataset_source, test_dataset,
+                  model, loss_function, optimizer,
+                  train_dataset, test_dataset,
                   num_epochs, batch_size,
                   display=True, random_seed=42):
     """
@@ -28,10 +29,13 @@ def training_loop(experiment,
     `num_epochs` is the number of epochs for which the optimizer will run
     `random_seed` is a seed used for reproducibility
     """
-    # initialization
-    if isinstance(optimizer, OptimizerDef): optimizer = optimizer.create(parameters)
     np.random.seed(random_seed) # insures reproducible batch order
-
+    # cut datasets into batches
+    train_dataset = train_dataset.batch(batch_size).prefetch(1)
+    test_dataset = test_dataset.batch(batch_size).prefetch(1)
+    # initialize parameters
+    parameters = initialize_parameters(model=model, batched_dataset=train_dataset, random_seed=random_seed)
+    if isinstance(optimizer, OptimizerDef): optimizer = optimizer.create(parameters)
     # jitted loss function
     @jax.jit
     def train_step(optimizer, batch):
@@ -39,21 +43,28 @@ def training_loop(experiment,
         (loss_value, updated_state), loss_grad = jax.value_and_grad(loss_fn, has_aux=True)(optimizer.target)
         optimizer = optimizer.apply_gradient(loss_grad)
         return optimizer, loss_value, updated_state
-    loss_jitted = jax.jit(partial(loss_function, train=False))
+    loss_jitted = jax.jit(partial(loss_function, train=False, use_mean=False))
 
     # training loop
     if display: print("Starting training...")
     for _ in range(num_epochs):
         experiment.start_epoch()
         # iterates on all batches
-        batch_iterator = train_dataset_source.batch_iterator(batch_size=batch_size, shuffle=True)
-        for batch in batch_iterator:
+        for batch in train_dataset.as_numpy_iterator():
+            # TODO jnp.float32(input) / 255.0
             optimizer, loss_value, updated_state = train_step(optimizer, batch)
             loss_value = np.asscalar(np.array(loss_value)) # while jnp.asscalar does not exist
             optimizer.replace(target={'params': optimizer.target['params'], 'batch_stats': updated_state})
             experiment.end_iteration(train_loss=loss_value, learning_rate=optimizer.optimizer_def.hyper_params.learning_rate)
         # measure validation error
-        test_loss, _ = loss_jitted(optimizer.target, test_dataset)
+        # TODO you cannot average the loss like that as they are already averages
+        test_loss = 0.
+        nb_elements_test = 0
+        for (inputs,labels) in test_dataset.as_numpy_iterator():
+            test_loss_batch, _ = loss_jitted(optimizer.target, (inputs,labels))
+            test_loss += test_loss_batch
+            nb_elements_test += inputs.shape[0]
+        test_loss /= nb_elements_test
         test_loss = np.asscalar(np.array(test_loss)) # while jnp.asscalar does not exist
         experiment.end_epoch(test_loss, display=display)
 

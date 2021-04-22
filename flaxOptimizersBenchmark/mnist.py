@@ -1,21 +1,11 @@
 import random
-import numpy as np
-from batchup.datasets import mnist
-from batchup.data_source import ArrayDataSource
+import tensorflow_datasets as tfds
 from .architectures import ResNet18
-from .training_loop import cross_entropy, initialize_parameters, training_loop, Experiment
+from .training_loop import cross_entropy, training_loop, Experiment
 
-# gets the dataset, downloads it if needed
-dataset = mnist.MNIST(n_val=None)
-# work aroud an error due to dataset not being encoded as numpy arrays
-train_X = np.array(dataset.train_X, copy=True)
-train_y = np.array(dataset.train_y, copy=True)
-test_X = np.array(dataset.test_X, copy=True)
-test_y = np.array(dataset.test_y, copy=True)
-# gets dataset ready
-train_dataset_source = ArrayDataSource([train_X, train_y])
-test_dataset = (test_X, test_y)
-nb_classes = 1 + max(test_y)
+# TODO this download by default, see https://www.tensorflow.org/datasets/api_docs/python/tfds/load
+(train_dataset, test_dataset), info = tfds.load('mnist', split=['train','test'], as_supervised=True, shuffle_files=True, with_info=True)
+nb_classes = info.features['label'].num_classes
 
 # defines the model
 model=ResNet18(num_classes=nb_classes)
@@ -31,11 +21,10 @@ def run_MNIST(optimizer, optimizer_name, output_folder="../data", random_seed=No
     """
     if random_seed is None: random_seed = random.getrandbits(32)
     # defines the loss
-    def loss(parameters, batch, train):
+    def loss(parameters, batch, train, use_mean=True):
         inputs, targets = batch
         predictions, updated_state = model.apply(parameters, x=inputs, train=train, mutable=['batch_stats'])
-        return cross_entropy(predictions, targets), updated_state
+        return cross_entropy(predictions, targets, use_mean), updated_state
     # trains the model
     experiment = Experiment("MNIST", model_name, optimizer_name, output_folder)
-    parameters = initialize_parameters(model=model, input_example=test_X, random_seed=random_seed)
-    return training_loop(experiment, parameters, loss, optimizer, train_dataset_source, test_dataset, num_epochs, batch_size, display, random_seed)
+    return training_loop(experiment, model, loss, optimizer, train_dataset, test_dataset, num_epochs, batch_size, display, random_seed)
