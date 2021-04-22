@@ -11,14 +11,3 @@ optimizer = optim.Adam(learning_rate=learning_rate, weight_decay=weight_decay, b
 
 # run benchmark
 run_MNIST(optimizer, 'Adam')
-
-# TODO very slow (more than 10s per epoch)
-# normal ?
-# overfits masively
-
-# reproduce this
-# https://www.tensorflow.org/tutorials/quickstart/advanced?hl=en
-
-# use tensorflow datasets to get them readymade!
-# https://www.tensorflow.org/datasets
-# https://jax.readthedocs.io/en/latest/notebooks/neural_network_with_tfds_data.html

@@ -33,6 +33,7 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
 - way to repeat experiments
 
 - add accuracy when it is meaningful
+  add several metrics even
 
 - plot
   the plotting function take experiments as inputs or (dataset,architecture) to compare optimizers
@@ -42,6 +43,9 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
   - final loss as a function of starting lr
 
 https://www.tensorflow.org/datasets/overview
+
+way to download the datasets
+way to use datasets already downloaded
 
 ## Functionalities we *do not* have
 
