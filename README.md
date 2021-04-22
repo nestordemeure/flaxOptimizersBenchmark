@@ -1,10 +1,11 @@
 # Flax Optimizers Benchmark
 
 The goal of this repository is to provide users with a collection of benchmark to evaluate Flax optimizers.
+To do so, we buil an infrastructure to run optimizers on a panel of datasets (adapted from [TensorFlow Datasets](https://www.tensorflow.org/datasets/overview)), save all meaningful training metrics to disk and plot their results later.
 
 We aim to:
 - give some fast benchmarks to quickly evaluate new optimizers
-- give classic benchmarks and plotting functions to help authors of deeplearning papers that want to publish a new optimizer
+- give classic benchmarks, plotting functions and functionalities to help authors of deep-learning papers that want to publish a new optimizer
 
 ## Installation
 
@@ -16,36 +17,31 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
 
 ## Usage
 
-### Fast benchmarks
-
-**TODO**
-
-### Slow benchmarks
-
 **TODO**
 
 ## TODO
 
-- struct to store hyperparameters or just one file per dataset (simpler at first)
-- code to download datasets
-- main training loop
-- architectures
-- way to repeat experiments
+- provide code to download and load datasets separately and to a user defined folder
 
-- add accuracy when it is meaningful
-  add several metrics even
+- the `Experiment` object should store additional information
+  - optimizer initial parameters
+  - training loop initial parameters
+  - metrics computed during the run (losses but also accuracy where it is meaningful)
 
-- plot
-  the plotting function take experiments as inputs or (dataset,architecture) to compare optimizers
-  - bar plot or jit/run time
+- code to repeat experiments
+
+- add some datasets
+  - imagenette
+  - imagewoof
+  - imagenet
+  - COCO
+  - wikitext
+
+- plotting functions that take `Experiment` as input (or (dataset,architecture) to compare optimizers)
+  - bar plot of jit/run time
   - bar plot of final train/test loss
-  - plot of loss accross time (train and/or test) (one or all optimizers)
+  - plot of metrics accross time (train and/or test) (one or all optimizers)
   - final loss as a function of starting lr
-
-https://www.tensorflow.org/datasets/overview
-
-way to download the datasets
-way to use datasets already downloaded
 
 ## Functionalities we *do not* have
 
@@ -54,7 +50,8 @@ way to use datasets already downloaded
 
 ## Flax optimizers
 
+You can find optimizers compatible with Flax in the following repositories:
+
 - [flaxOptimizers](https://github.com/nestordemeure/flaxOptimizers) contains implementations of a large number of optimizers in Flax.
 - [AdahessianJax](https://github.com/nestordemeure/AdaHessianJax) contains my implementation of the Adahessian second order optimizer in Flax.
 - [Flax.optim](https://github.com/google/flax/tree/master/flax/optim) contains the official Flax optimizers.
-
