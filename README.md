@@ -27,9 +27,8 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
 - provide code to download and load datasets separately and to a user defined folder
 
 - the `Experiment` object should store additional information
-  - optimizer initial parameters
-  - training loop initial parameters
   - metrics computed during the run (losses but also accuracy where it is meaningful)
+  - function to get the mean and sd of several Experiments
 
 - code to repeat experiments
 

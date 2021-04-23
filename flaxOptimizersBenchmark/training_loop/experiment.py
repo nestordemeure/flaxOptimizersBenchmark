@@ -1,30 +1,57 @@
+import random
 import statistics
 import math
 import time
 import json
+from collections import defaultdict
 
-# TODO:
-# - stores optimizer parameters in a dict
-# - stores train parameters in a dict
-# - function to get the mean and sd of several Experiments
-# - pass dictionnary rather than particular loss/parameter so that we can instrument many things (?)
+#----------------------------------------------------------------------------------------
+# PROBLEM DESCRIPTION
+
+def make_optimizer(opt_name, opt_class, **opt_initial_parameters):
+    """
+    takes a name, a class and intial parameters
+    returns an initialized optimizer and a description to be used inside experiment
+    as a pair (optimizer,description)
+    """
+    # initialize optimizer
+    optimizer = opt_class(**opt_initial_parameters)
+    # creates description
+    description = opt_initial_parameters
+    description["name"] = opt_name
+    return optimizer, description
+
+def make_training_loop_description(nb_epochs, batch_size, random_seed=None):
+    """
+    produces a description of the training loop
+    """
+    if random_seed is None: random_seed = random.getrandbits(32)
+    return {"nb_epochs":nb_epochs, "batch_size":batch_size, "random_seed":random_seed}
+
+def make_problem_description(benchmark_name, model_name, training_loop_description, optimizer_description):
+    """
+    produces a full description of problem being solved
+    """
+    return {"benchmark_name":benchmark_name, "model_name": model_name,
+            "optimizer_description":optimizer_description,
+            "training_loop_description":training_loop_description}
+
+#----------------------------------------------------------------------------------------
+# EXPERIMENT
 
 class Experiment():
     "Used to store training data on an experiment."
-    def __init__(self, benchmark_name, model_name, optimizer_name, save_folder_path):
-        self.benchmark_name = benchmark_name
-        self.model_name = model_name
-        self.optimizer_name = optimizer_name
+    def __init__(self, problem_description, save_folder_path):
+        self.problem_description = problem_description
         self.save_folder = save_folder_path
         # current time, used as an id to discriminate between identical experiments
         self.id = str(time.time())
-        # per iteration information
-        self.train_losses = [] # one per iteration
-        self.learning_rates = [] # learning rate used at each iteration
-        # per epoch information
+        # once per iteration information
+        self.iteration_metrics = defaultdict(list)
+        # once per epoch information
         self.iteration_at_epoch = [] # iteration at which the epochs have hapened
-        self.test_losses = []
         self.epoch_runtimes = [] # time taken to run each epoch
+        self.epoch_metrics = defaultdict(list)
         # used for time recording
         self.__epoch_start_time= None
 
@@ -39,7 +66,7 @@ class Experiment():
     @property
     def nb_iterations(self):
         "number of iterations so far"
-        return len(self.train_losses)
+        return len(self.iteration_metrics['train_loss'])
 
     @property
     def average_time_per_epoch(self):
@@ -50,12 +77,12 @@ class Experiment():
     @property
     def best_train_loss(self):
         "returns the best training loss that was observed so far"
-        return min(self.train_losses)
+        return min(self.iteration_metrics['train_loss'])
 
     @property
     def best_test_loss(self):
         "returns the best testing loss that was observed so far"
-        return min(self.test_losses)
+        return min(self.epoch_metrics['test_loss'])
 
     @property
     def jit_time(self):
@@ -66,20 +93,27 @@ class Experiment():
     @property
     def filename(self):
         "returns the path to the file where the experiment will be stored"
-        return self.save_folder + '/' + self.benchmark_name + '_' \
-               + self.model_name + '_' + self.optimizer_name + '_' + self.id \
+        benchmark_name = self.problem_description['benchmark_name']
+        model_name = self.problem_description['model_name']
+        optimizer_name = self.problem_description['optimizer_description']['name']
+        nb_epochs = self.problem_description['training_loop_description']['nb_epochs']
+        batch_size = self.problem_description['training_loop_description']['batch_size']
+        return self.save_folder + '/' + benchmark_name + '_' \
+               + model_name + '_' + optimizer_name + '_' \
+               + 'e' + str(nb_epochs) + 'b' + str(batch_size) + 'i' + self.id \
                + '.json'
 
     #--------------------------------------------------------------------------
     # ITERATION
 
-    def end_iteration(self, train_loss, learning_rate=None):
+    def end_iteration(self, train_loss, **metrics):
         """
-        stores training loss and, optionaly, learning rate
+        records the training loss and any additional metric stored in the corresponding dictionary
         we suppose that this function will be called at the end of each iteration
         """
-        self.train_losses.append(train_loss)
-        self.learning_rates.append(learning_rate)
+        self.iteration_metrics['train_loss'].append(train_loss)
+        for (name,value) in metrics.items():
+            self.iteration_metrics[name].append(value)
 
     #--------------------------------------------------------------------------
     # EPOCH
@@ -90,11 +124,12 @@ class Experiment():
         """
         self.__epoch_start_time = time.time()
 
-    def end_epoch(self, test_loss, display=True):
+    def end_epoch(self, test_loss, display=True, **metrics):
         """
         stores:
         - the iteration number,
         - the test loss,
+        - any additional metric stored in the corresponding dictionary,
         - the runtime for the epoch
         save the Experiment to file
         optionally displays some informations
@@ -102,18 +137,19 @@ class Experiment():
         if self.__epoch_start_time is None: raise AssertionError("You need to call `start_epoch` at the begining of the epoch!")
         # stores iteration
         self.iteration_at_epoch.append(self.nb_iterations - 1) # -1 for indexing purposes
-        # stores test loss
-        self.test_losses.append(test_loss)
         # updates runtime information
         runtime = time.time() - self.__epoch_start_time
         self.epoch_runtimes.append(runtime)
+        # stores test loss
+        self.epoch_metrics['test_loss'].append(test_loss)
+        for (name,value) in metrics.items():
+            self.epoch_metrics[name].append(value)
         # saves the experiment as a json file
         self.save()
         # displays some information
         if display:
-            latest_test_loss = self.test_losses[-1]
-            latest_train_loss = self.train_losses[-1]
-            print(f'Epoch {self.nb_epochs} in {runtime:0.2f}s. Test loss: {latest_test_loss:e} Train loss: {latest_train_loss:e}')
+            latest_train_loss = self.iteration_metrics['train_loss'][-1]
+            print(f'Epoch {self.nb_epochs} in {runtime:0.2f}s. Test loss: {test_loss:e} Train loss: {latest_train_loss:e}')
 
     #--------------------------------------------------------------------------
     # SERIALIZATION
@@ -127,6 +163,6 @@ class Experiment():
     def load(path):
         "load an experiment, stored as a json, given the corresponding path"
         with open(path, 'r') as file:
-            experiment = Experiment('', '', '', '') # empty dummy
+            experiment = Experiment({}, '') # empty dummy
             experiment.__dict__ = json.load(fp=file)
             return experiment

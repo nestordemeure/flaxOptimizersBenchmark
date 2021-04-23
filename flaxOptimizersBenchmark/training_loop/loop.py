@@ -35,8 +35,7 @@ def compute_average_loss(dataset, parameters, loss_summed_jitted):
 def training_loop(experiment,
                   model, loss_function, optimizer,
                   train_dataset, test_dataset,
-                  num_epochs, batch_size,
-                  display=True, random_seed=42):
+                  display=True):
     """
     `experiment` contains the names of the eements being tested and will be updated with the losses and other informations
     `parameters` is the initial parameters for the model that needs to be optimized
@@ -47,15 +46,17 @@ def training_loop(experiment,
     `num_epochs` is the number of epochs for which the optimizer will run
     `random_seed` is a seed used for reproducibility
     """
-    np.random.seed(random_seed) # insures reproducible batch order
+    # gets training parameters
+    nb_epochs = experiment.problem_description["training_loop_description"]['nb_epochs']
+    batch_size = experiment.problem_description["training_loop_description"]['batch_size']
+    random_seed =  experiment.problem_description["training_loop_description"]['random_seed']
     # cut datasets into batches
     train_dataset = train_dataset.batch(batch_size).prefetch(1)
     test_dataset = test_dataset.batch(batch_size).prefetch(1)
-
     # initialize parameters
+    np.random.seed(random_seed) # insures reproducible batch order
     parameters = initialize_parameters(model=model, batched_dataset=train_dataset, random_seed=random_seed)
-    if isinstance(optimizer, OptimizerDef): optimizer = optimizer.create(parameters)
-
+    optimizer = optimizer.create(parameters)
     # jitted loss functions
     @jax.jit
     def train_step(optimizer, batch):
@@ -64,10 +65,9 @@ def training_loop(experiment,
         optimizer = optimizer.apply_gradient(loss_grad)
         return optimizer, loss_value, updated_state
     loss_summed_jitted = jax.jit(partial(loss_function, train=False, use_mean=False))
-
     # training loop
     if display: print("Starting training...")
-    for _ in range(num_epochs):
+    for _ in range(nb_epochs):
         experiment.start_epoch()
         # iterates on all batches
         for batch in train_dataset.as_numpy_iterator():
@@ -76,6 +76,6 @@ def training_loop(experiment,
             experiment.end_iteration(train_loss=asscalar(loss_value), learning_rate=optimizer.optimizer_def.hyper_params.learning_rate)
         # measure validation error
         test_loss = compute_average_loss(test_dataset, optimizer.target, loss_summed_jitted)
-        experiment.end_epoch(test_loss, display=display)
+        experiment.end_epoch(test_loss=test_loss, display=display)
     if display: print(f"Training done (final test accuracy: {experiment.best_test_loss:e}).")
     return experiment
