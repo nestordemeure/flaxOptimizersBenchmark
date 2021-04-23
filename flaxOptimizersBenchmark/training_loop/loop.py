@@ -42,7 +42,7 @@ def compute_average_metrics(dataset, parameters, apply_model, metrics_functions)
 
 def training_loop(experiment,
                   model, loss_function, optimizer,
-                  per_epoch_metrics,
+                  optimizer_metrics, per_epoch_metrics,
                   train_dataset, test_dataset,
                   display=True):
     """
@@ -100,7 +100,11 @@ def training_loop(experiment,
         for batch in train_dataset.as_numpy_iterator():
             optimizer, loss_value, updated_state = train_step(optimizer, batch)
             optimizer.replace(target={'params': optimizer.target['params'], 'batch_stats': updated_state})
-            experiment.end_iteration(train_loss=asscalar(loss_value), learning_rate=optimizer.optimizer_def.hyper_params.learning_rate)
+            # collect optimizer metrics
+            metrics = {'train_loss':asscalar(loss_value)}
+            for (name,function) in optimizer_metrics.items():
+                metrics[name] = function(optimizer.optimizer_def)
+            experiment.end_iteration(**metrics)
         # measure validation error
         test_metrics = compute_average_metrics(test_dataset, optimizer.target, apply_model_jitted, per_epoch_metrics)
         experiment.end_epoch(**test_metrics, display=display)

@@ -8,19 +8,6 @@ from collections import defaultdict
 #----------------------------------------------------------------------------------------
 # PROBLEM DESCRIPTION
 
-def make_optimizer(opt_name, opt_class, **opt_initial_parameters):
-    """
-    takes a name, a class and intial parameters
-    returns an initialized optimizer and a description to be used inside experiment
-    as a pair (optimizer,description)
-    """
-    # initialize optimizer
-    optimizer = opt_class(**opt_initial_parameters)
-    # creates description
-    description = opt_initial_parameters
-    description["name"] = opt_name
-    return optimizer, description
-
 def make_training_loop_description(nb_epochs, batch_size, random_seed=None):
     """
     produces a description of the training loop

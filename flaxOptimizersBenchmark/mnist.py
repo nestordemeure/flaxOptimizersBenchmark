@@ -22,16 +22,16 @@ def run_MNIST(optimizer_with_description, test_metrics={"accuracy":accuracy}, ou
     """
     Runs a SimpleCNN model on the MNIST dataset
 
-    `optimizer_with_description` is an optimizer and it sdescription as produced by `make_optimizer`
+    `optimizer_with_description` is an optimizer and its description as produced by `make_optimizer`
     `test_metrics` is a lost of function that will be evaluated on the test dataset at the end of each epoch
     `output_folder` is the folder where the result of the experiment will be stored
     `random_seed` can be specified to make the experiment deterministic
     `display` can be set to false to hide training informations
     """
     # description of the problem
-    optimizer, optimizer_description = optimizer_with_description
+    optimizer, optimizer_description, optimizer_metrics = optimizer_with_description
     training_loop_description = make_training_loop_description(nb_epochs=nb_epochs, batch_size=batch_size, random_seed=random_seed)
     problem_description = make_problem_description(benchmark_name="MNIST", model_name=model_name, training_loop_description=training_loop_description, optimizer_description=optimizer_description)
     experiment = Experiment(problem_description, output_folder)
     # trains the model
-    return training_loop(experiment, model, cross_entropy, optimizer, test_metrics, train_dataset, test_dataset, display)
+    return training_loop(experiment, model, cross_entropy, optimizer, optimizer_metrics, test_metrics, train_dataset, test_dataset, display)
