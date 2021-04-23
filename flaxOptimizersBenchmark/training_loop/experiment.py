@@ -90,6 +90,16 @@ class Experiment():
                + model_name + '_' + str(nb_epochs) + '_' + str(batch_size) + '_' \
                + optimizer_name + '_' + self.id + '.json'
 
+    @property
+    def problem_description(self):
+        "two experiments with the same problem description are considered identical"
+        benchmark_name = self.problem_description['benchmark_name']
+        model_name = self.problem_description['model_name']
+        optimizer_description = self.problem_description['optimizer_description']
+        nb_epochs = self.problem_description['training_loop_description']['nb_epochs']
+        batch_size = self.problem_description['training_loop_description']['batch_size']
+        return benchmark_name, model_name, optimizer_description, nb_epochs, batch_size
+
     #--------------------------------------------------------------------------
     # ITERATION
 
