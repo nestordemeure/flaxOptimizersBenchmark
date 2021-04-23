@@ -79,19 +79,7 @@ class Experiment():
         return self.epoch_runtimes[0] - self.average_time_per_epoch
 
     @property
-    def filename(self):
-        "returns the path to the file where the experiment will be stored"
-        benchmark_name = self.problem_description['benchmark_name']
-        model_name = self.problem_description['model_name']
-        optimizer_name = self.problem_description['optimizer_description']['name']
-        nb_epochs = self.problem_description['training_loop_description']['nb_epochs']
-        batch_size = self.problem_description['training_loop_description']['batch_size']
-        return self.save_folder + '/' + benchmark_name + '_' \
-               + model_name + '_' + str(nb_epochs) + '_' + str(batch_size) + '_' \
-               + optimizer_name + '_' + self.id + '.json'
-
-    @property
-    def problem_description(self):
+    def problem_id(self):
         "two experiments with the same problem description are considered identical"
         benchmark_name = self.problem_description['benchmark_name']
         model_name = self.problem_description['model_name']
@@ -99,6 +87,14 @@ class Experiment():
         nb_epochs = self.problem_description['training_loop_description']['nb_epochs']
         batch_size = self.problem_description['training_loop_description']['batch_size']
         return benchmark_name, model_name, optimizer_description, nb_epochs, batch_size
+
+    @property
+    def filename(self):
+        "returns the path to the file where the experiment will be stored"
+        benchmark_name, model_name, optimizer_description, nb_epochs, batch_size = self.problem_id
+        return self.save_folder + '/' + benchmark_name + '_' \
+               + model_name + '_' + str(nb_epochs) + '_' + str(batch_size) + '_' \
+               + optimizer_description['name'] + '_' + self.id + '.json'
 
     #--------------------------------------------------------------------------
     # ITERATION
