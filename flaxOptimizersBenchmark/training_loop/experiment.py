@@ -99,9 +99,8 @@ class Experiment():
         nb_epochs = self.problem_description['training_loop_description']['nb_epochs']
         batch_size = self.problem_description['training_loop_description']['batch_size']
         return self.save_folder + '/' + benchmark_name + '_' \
-               + model_name + '_' + optimizer_name + '_' \
-               + 'e' + str(nb_epochs) + 'b' + str(batch_size) + 'i' + self.id \
-               + '.json'
+               + model_name + '_' + str(nb_epochs) + '_' + str(batch_size) + '_' \
+               + optimizer_name + '_' + self.id + '.json'
 
     #--------------------------------------------------------------------------
     # ITERATION
@@ -149,7 +148,10 @@ class Experiment():
         # displays some information
         if display:
             latest_train_loss = self.iteration_metrics['train_loss'][-1]
-            print(f'Epoch {self.nb_epochs} in {runtime:0.2f}s. Test loss: {test_loss:e} Train loss: {latest_train_loss:e}')
+            output = f'Epoch {self.nb_epochs} in {runtime:0.2f}s. Test loss: {test_loss:e} Train loss: {latest_train_loss:e}'
+            for (name,values) in self.epoch_metrics.items():
+                if name != 'test_loss': output += f' Test {name}: {values[-1]}'
+            print(output)
 
     #--------------------------------------------------------------------------
     # SERIALIZATION

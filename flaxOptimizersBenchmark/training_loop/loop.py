@@ -1,7 +1,7 @@
 from functools import partial
+from collections import defaultdict
 import jax
 import numpy as np
-from flax.optim import OptimizerDef
 
 def asscalar(x):
     """
@@ -19,52 +19,79 @@ def initialize_parameters(model, batched_dataset, random_seed=42):
     parameters = model.init(rng, input_example, train=False)
     return parameters
 
-def compute_average_loss(dataset, parameters, loss_summed_jitted):
+def compute_average_metrics(dataset, parameters, apply_model, metrics_functions):
     """
-    Evaluates the loss, averaged over all elements in a dataset
-    WARNING: the loss must return the sum of the loss for all element in the batch and not the average
+    Evaluates each metric, averaged over all elements of the dataset
+    we suppose that the functions in metrics_functions are jitted and do not compute the average themselves
     """
-    loss = 0.0
+    metrics = defaultdict(float)
     nb_elements = 0
     for batch in dataset.as_numpy_iterator():
-        loss_batch, _ = loss_summed_jitted(parameters, batch)
-        loss += asscalar(loss_batch)
+        # applies the model to the inputs
+        inputs, targets = batch
+        predictions = apply_model(parameters, inputs)
+        # evaluates all losses
+        for (name,function) in metrics_functions.items():
+            metric_batch = function(predictions, targets)
+            metrics[name] += asscalar(metric_batch)
         nb_elements += batch[0].shape[0]
-    return loss / nb_elements
+    # turns all sums into averages
+    for name in metrics.keys():
+        metrics[name] /= nb_elements
+    return metrics
 
 def training_loop(experiment,
                   model, loss_function, optimizer,
+                  per_epoch_metrics,
                   train_dataset, test_dataset,
                   display=True):
     """
-    `experiment` contains the names of the eements being tested and will be updated with the losses and other informations
-    `parameters` is the initial parameters for the model that needs to be optimized
-    `loss_function` takes parameters, a batch and returns the loss
+    `experiment` contains the names of the elements being tested and will be updated with the losses and other informations
+
+    `model` is the model that should be applied to the inputs
+    `loss_function` takes (predictions,targets) and returns a scalar
     `optimizer` is a FLAX optimizer description
-    `train_dataset_source` is a datasources that has a `batch_iterator` method to get a batch
-    `test_dataset` is a batch
-    `num_epochs` is the number of epochs for which the optimizer will run
-    `random_seed` is a seed used for reproducibility
+
+    `train_dataset` is a Tensorflow.Dataset
+    `test_dataset` is a Tensorflow.Dataset
+
+    `display` tells us whether we should display intermediate informations during the training
     """
     # gets training parameters
     nb_epochs = experiment.problem_description["training_loop_description"]['nb_epochs']
     batch_size = experiment.problem_description["training_loop_description"]['batch_size']
-    random_seed =  experiment.problem_description["training_loop_description"]['random_seed']
     # cut datasets into batches
     train_dataset = train_dataset.batch(batch_size).prefetch(1)
     test_dataset = test_dataset.batch(batch_size).prefetch(1)
     # initialize parameters
+    random_seed =  experiment.problem_description["training_loop_description"]['random_seed']
     np.random.seed(random_seed) # insures reproducible batch order
     parameters = initialize_parameters(model=model, batched_dataset=train_dataset, random_seed=random_seed)
     optimizer = optimizer.create(parameters)
-    # jitted loss functions
+
+    # jitted training step
     @jax.jit
     def train_step(optimizer, batch):
-        def loss_fn(parameters): return loss_function(parameters, batch, train=True, use_mean=True)
+        # gets the loss and updated parameter
+        def loss_fn(parameters):
+            inputs, targets = batch
+            predictions, updated_state = model.apply(parameters, inputs, train=True, mutable=['batch_stats'])
+            loss = loss_function(predictions, targets, use_mean=True)
+            return loss, updated_state
+        # computes the gradient
         (loss_value, updated_state), loss_grad = jax.value_and_grad(loss_fn, has_aux=True)(optimizer.target)
+        # applies the optimization
         optimizer = optimizer.apply_gradient(loss_grad)
         return optimizer, loss_value, updated_state
-    loss_summed_jitted = jax.jit(partial(loss_function, train=False, use_mean=False))
+    # jitted model application
+    @jax.jit
+    def apply_model_jitted(parameters, inputs):
+        return model.apply(parameters, x=inputs, train=False)
+    # jits all metrics
+    per_epoch_metrics['test_loss'] = loss_function
+    for (name,function) in per_epoch_metrics.items():
+        per_epoch_metrics[name] = jax.jit(partial(function, use_mean=False))
+
     # training loop
     if display: print("Starting training...")
     for _ in range(nb_epochs):
@@ -75,7 +102,7 @@ def training_loop(experiment,
             optimizer.replace(target={'params': optimizer.target['params'], 'batch_stats': updated_state})
             experiment.end_iteration(train_loss=asscalar(loss_value), learning_rate=optimizer.optimizer_def.hyper_params.learning_rate)
         # measure validation error
-        test_loss = compute_average_loss(test_dataset, optimizer.target, loss_summed_jitted)
-        experiment.end_epoch(test_loss=test_loss, display=display)
+        test_metrics = compute_average_metrics(test_dataset, optimizer.target, apply_model_jitted, per_epoch_metrics)
+        experiment.end_epoch(**test_metrics, display=display)
     if display: print(f"Training done (final test accuracy: {experiment.best_test_loss:e}).")
     return experiment
