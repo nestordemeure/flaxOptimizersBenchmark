@@ -4,6 +4,7 @@ import math
 import time
 import json
 from collections import defaultdict
+from .tools import average_dic, standard_deviation_dict
 
 #----------------------------------------------------------------------------------------
 # PROBLEM DESCRIPTION
@@ -139,6 +140,21 @@ class Experiment():
             for (name,values) in self.epoch_metrics.items():
                 if name != 'test_loss': output += f' Test {name}: {values[-1]}'
             print(output)
+
+    #--------------------------------------------------------------------------
+    # STATISTICS
+
+    @staticmethod
+    def mean_sd(experiment_list):
+        "computes the mean and sd of a list of experiments"
+        dict_list = list(map(lambda e: e.__dict__, experiment_list))
+        # computes the mean of the dictionaries and put it back in an experiment
+        mean = Experiment({}, '') # empty dummy
+        mean.__dict__ = average_dic(dict_list)
+        # computes the standard deviation of the dictionaries and put it back in an experiment
+        sd = Experiment({}, '') # empty dummy
+        sd.__dict__ = standard_deviation_dict(dict_list, mean.__dict__)
+        return mean, sd
 
     #--------------------------------------------------------------------------
     # SERIALIZATION

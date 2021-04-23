@@ -26,17 +26,15 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
 
 - provide code to download and load datasets separately and to a user defined folder
 
-- the `Experiment` object should store additional information
-  - function to get the mean and sd of several Experiments
-
-- code to repeat experiments
-
 - add some datasets
   - imagenette
   - imagewoof
   - imagenet
   - COCO
   - wikitext
+
+- code to load experiments by search criteria
+  or load all of them and apply the criteria afterward with a simple filter
 
 - plotting functions that take `Experiment` as input (or (dataset,architecture) to compare optimizers)
   - bar plot of jit/run time
