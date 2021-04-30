@@ -24,10 +24,7 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
 
 ## TODO
 
-- provide code to download and load datasets separately and to a user defined folder
-
 - add some datasets
-  - imagenette
   - imagewoof
   - imagenet
   - COCO

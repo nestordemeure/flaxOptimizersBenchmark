@@ -117,22 +117,25 @@ class Experiment():
         """
         self.__epoch_start_time = time.time()
 
+    def end_epoch_timer(self):
+        """
+        end the timer for the epoch
+        """
+        if self.__epoch_start_time is None: raise AssertionError("You need to call `start_epoch` at the begining of the epoch!")
+        runtime = time.time() - self.__epoch_start_time
+        self.epoch_runtimes.append(runtime)
+
     def end_epoch(self, test_loss, display=True, **metrics):
         """
         stores:
         - the iteration number,
         - the test loss,
         - any additional metric stored in the corresponding dictionary,
-        - the runtime for the epoch
         save the Experiment to file
         optionally displays some informations
         """
-        if self.__epoch_start_time is None: raise AssertionError("You need to call `start_epoch` at the begining of the epoch!")
         # stores iteration
         self.iteration_at_epoch.append(self.nb_iterations - 1) # -1 for indexing purposes
-        # updates runtime information
-        runtime = time.time() - self.__epoch_start_time
-        self.epoch_runtimes.append(runtime)
         # stores test loss
         self.epoch_metrics['test_loss'].append(test_loss)
         for (name,value) in metrics.items():
@@ -142,6 +145,7 @@ class Experiment():
         # displays some information
         if display:
             latest_train_loss = self.iteration_metrics['train_loss'][-1]
+            runtime = self.epoch_runtimes[-1]
             output = f'Epoch {self.nb_epochs} in {runtime:0.2f}s. Test loss: {test_loss:e} Train loss: {latest_train_loss:e}'
             for (name,values) in self.epoch_metrics.items():
                 if name != 'test_loss': output += f' Test {name}: {values[-1]}'

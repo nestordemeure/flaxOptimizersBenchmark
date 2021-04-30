@@ -2,12 +2,24 @@ from functools import partial
 from collections import defaultdict
 import jax
 import numpy as np
+import flax
+from typing import Any
 
 def asscalar(x):
     """
     turns a device array returns by JAX into a proper scalar
     """
     return np.asscalar(np.array(x))
+
+@flax.struct.dataclass
+class TrainState:
+    """
+    stores the current network parameters, mutable state and optimizer state
+    uses flax.struct.dataclass to pass to tree_map and pmap
+    """
+    step: int
+    optimizer: flax.optim.Optimizer
+    model_state: Any
 
 def initialize_parameters(model, batched_dataset, random_seed=42):
     """
@@ -16,20 +28,25 @@ def initialize_parameters(model, batched_dataset, random_seed=42):
     """
     rng = jax.random.PRNGKey(random_seed)
     input_example, _ = next(batched_dataset.as_numpy_iterator())
-    parameters = model.init(rng, input_example, train=False)
-    return parameters
+    variables = model.init(rng, input_example)
+    model_state, params = variables.pop('params')
+    return model_state, params
 
-def compute_average_metrics(dataset, parameters, apply_model, metrics_functions):
+def compute_average_metrics(dataset, state, apply_model, metrics_functions):
     """
     Evaluates each metric, averaged over all elements of the dataset
     we suppose that the functions in metrics_functions are jitted and do not compute the average themselves
     """
+    # rebuilds the variables
+    params = state.optimizer.target
+    variables = {'params': params, **state.model_state}
+    # compute sthe metrics
     metrics = defaultdict(float)
     nb_elements = 0
     for batch in dataset.as_numpy_iterator():
         # applies the model to the inputs
         inputs, targets = batch
-        predictions = apply_model(parameters, inputs)
+        predictions = apply_model(variables, inputs)
         # evaluates all losses
         for (name,function) in metrics_functions.items():
             metric_batch = function(predictions, targets)
@@ -66,28 +83,33 @@ def training_loop(experiment,
     # initialize parameters
     random_seed =  experiment.problem_description["training_loop_description"]['random_seed']
     np.random.seed(random_seed) # insures reproducible batch order
-    parameters = initialize_parameters(model=model, batched_dataset=train_dataset, random_seed=random_seed)
-    optimizer = optimizer.create(parameters)
+    model_state, params = initialize_parameters(model=model, batched_dataset=train_dataset, random_seed=random_seed)
+    optimizer = optimizer.create(params)
+    state = TrainState(step=0, optimizer=optimizer, model_state=model_state)
 
     # jitted training step
     @jax.jit
-    def train_step(optimizer, batch):
+    def train_step(optimizer, state, batch):
+        optimizer = state.optimizer
         # gets the loss and updated parameter
-        def loss_fn(parameters):
+        def loss_fn(params):
             inputs, targets = batch
-            predictions, updated_state = model.apply(parameters, inputs, train=True, mutable=['batch_stats'])
+            variables = {'params': params, **state.model_state}
+            predictions, updated_batch_stats = model.apply(variables, inputs, mutable=['batch_stats'])
             loss = loss_function(predictions, targets, use_mean=True)
-            return loss, updated_state
+            return loss, updated_batch_stats
         # computes the gradient
-        (loss_value, updated_state), loss_grad = jax.value_and_grad(loss_fn, has_aux=True)(optimizer.target)
+        (loss_value, updated_batch_stats), loss_grad = jax.value_and_grad(loss_fn, has_aux=True)(optimizer.target)
         # applies the optimization
-        optimizer = optimizer.apply_gradient(loss_grad)
+        updated_optimizer = optimizer.apply_gradient(loss_grad)
+        updated_state = state.replace(optimizer=updated_optimizer, model_state=updated_batch_stats)
         return optimizer, loss_value, updated_state
     # jitted model application
     @jax.jit
-    def apply_model_jitted(parameters, inputs):
-        return model.apply(parameters, x=inputs, train=False)
+    def apply_model_jitted(variables, inputs):
+        return model.apply(variables, x=inputs)
     # jits all metrics
+    # TODO might be able to produce a single jitted function that computes all the metrics at once
     per_epoch_metrics['test_loss'] = loss_function
     for (name,function) in per_epoch_metrics.items():
         per_epoch_metrics[name] = jax.jit(partial(function, use_mean=False))
@@ -98,15 +120,16 @@ def training_loop(experiment,
         experiment.start_epoch()
         # iterates on all batches
         for batch in train_dataset.as_numpy_iterator():
-            optimizer, loss_value, updated_state = train_step(optimizer, batch)
-            optimizer.replace(target={'params': optimizer.target['params'], 'batch_stats': updated_state})
+            # does one optimization step and updates the batchnorm state
+            optimizer, loss_value, state = train_step(optimizer, state, batch)
             # collect optimizer metrics
-            metrics = {'train_loss':asscalar(loss_value)}
+            metrics = {'train_loss': asscalar(loss_value)}
             for (name,function) in optimizer_metrics.items():
                 metrics[name] = function(optimizer.optimizer_def)
             experiment.end_iteration(**metrics)
-        # measure validation error
-        test_metrics = compute_average_metrics(test_dataset, optimizer.target, apply_model_jitted, per_epoch_metrics)
+        # computes and stores epoch metrics
+        experiment.end_epoch_timer()
+        test_metrics = compute_average_metrics(test_dataset, state, apply_model_jitted, per_epoch_metrics)
         experiment.end_epoch(**test_metrics, display=display)
-    if display: print(f"Training done (final test accuracy: {experiment.best_test_loss:e}).")
+    if display: print(f"Training done (final test loss: {experiment.best_test_loss:e}).")
     return experiment

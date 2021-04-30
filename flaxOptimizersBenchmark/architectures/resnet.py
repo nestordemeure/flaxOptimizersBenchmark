@@ -52,8 +52,16 @@ class BottleneckResNetBlock(nn.Module):
             residual = self.norm(name='norm_proj')(residual)
         return self.act(residual + y)
 
+class Identity(nn.Module):
+    """does nothing"""
+    scale_init: Callable = None
+
+    @nn.compact
+    def __call__(self, x):
+        return x
+
 class ResNet(nn.Module):
-    """ResNetV1."""
+    """ResNet"""
     stage_sizes: Sequence[int]
     block_cls: ModuleDef
     num_classes: int
@@ -62,9 +70,11 @@ class ResNet(nn.Module):
     act: Callable = nn.relu
 
     @nn.compact
-    def __call__(self, x, train: bool = True):
+    def __call__(self, x):
         conv = partial(nn.Conv, use_bias=False, dtype=self.dtype)
-        norm = partial(nn.BatchNorm, use_running_average=not train, momentum=0.9, epsilon=1e-5, dtype=self.dtype)
+        update_batchnorm = self.is_mutable_collection('batch_stats')
+        norm = partial(nn.BatchNorm, use_running_average=not update_batchnorm, momentum=0.9, epsilon=1e-5, dtype=self.dtype)
+        #norm = Identity #TODO currently the network gets a terrible test accuracy when using batchnorm (even on train data)
         x = conv(self.num_filters, (7, 7), (2, 2), padding=[(3, 3), (3, 3)], name='conv_init')(x)
         x = norm(name='bn_init')(x)
         x = nn.relu(x)
