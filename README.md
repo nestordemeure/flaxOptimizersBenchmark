@@ -22,10 +22,15 @@ pip install git+https://github.com/nestordemeure/flaxOptimizersBenchmark.git
 
 **TODO**
 
+## Datasets
+
+- MNIST
+- Imagenette (V2)
+- Imagewoof (V2)
+
 ## TODO
 
 - add some datasets
-  - imagewoof
   - imagenet
   - COCO
   - wikitext
